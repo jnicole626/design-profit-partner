@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ImagePlus, Layers, LogOut, Palette, Plus, Search, Sparkles, Tag, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -280,6 +281,7 @@ function ArtworkDialog({ userId, open, onOpenChange, onCreate }: { userId: strin
       setImage(await uploadCatalogImage(userId, f));
     } catch (error) {
       console.error(error);
+      toast.error("Couldn’t upload that artwork image. Check your connection and try again.");
     }
   };
   return (
