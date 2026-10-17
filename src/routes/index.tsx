@@ -291,7 +291,7 @@ function ArtworkDialog({ userId, open, onOpenChange, onCreate }: { userId: strin
           <div>
             <Label>Artwork image</Label>
             <label className="mt-1 flex h-36 cursor-pointer items-center justify-center overflow-hidden rounded-md border-2 border-dashed text-sm text-muted-foreground hover:border-primary">
-              {image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <span className="flex items-center gap-2"><ImagePlus className="h-4 w-4" /> Upload image</span>}
+              {image ? <CatalogImage src={image} alt="" className="h-full w-full object-cover" /> : <span className="flex items-center gap-2"><ImagePlus className="h-4 w-4" /> Upload image</span>}
               <input type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
             </label>
           </div>
