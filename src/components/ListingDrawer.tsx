@@ -14,6 +14,7 @@ import { CatalogImage } from "@/components/CatalogImage";
 import { uploadCatalogImage } from "@/lib/supabase";
 
 interface Props {
+  userId: string;
   listing: Listing | null;
   artworks: Artwork[];
   onClose: () => void;
