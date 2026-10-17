@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { ImagePlus, Layers, Palette, Plus, Search, Sparkles, Tag, TrendingUp } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ImagePlus, Layers, LogOut, Palette, Plus, Search, Sparkles, Tag, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,6 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ListingDrawer } from "@/components/ListingDrawer";
+import { SignInScreen } from "@/components/SignInScreen";
+import { CatalogImage } from "@/components/CatalogImage";
+import { loadCloudCatalog, saveCloudCatalog, supabase, uploadCatalogImage } from "@/lib/supabase";
 import { StatusBadge, StoreBadge } from "@/components/StoreBadge";
 import {
   CATEGORIES, calcProfit, emptyListing, loadCatalog, money, saveCatalog, seedArtworks, seedListings, summarize, uid,
@@ -34,6 +37,8 @@ function Index() {
   const [artworks, setArtworks] = useState<Artwork[]>(seedArtworks);
   const [listings, setListings] = useState<Listing[]>(seedListings);
   const [ready, setReady] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
   const [store, setStore] = useState<StoreFilter>("all");
   const [category, setCategory] = useState("all");
   const [q, setQ] = useState("");
@@ -41,12 +46,50 @@ function Index() {
   const [artDialog, setArtDialog] = useState(false);
 
   useEffect(() => {
-    const c = loadCatalog();
-    setArtworks(c.artworks);
-    setListings(c.listings);
-    setReady(true);
+    if (!supabase) return;
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (active) setUserId(data.session?.user.id ?? null);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user.id ?? null);
+    });
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
   }, []);
-  useEffect(() => { if (ready) saveCatalog({ artworks, listings }); }, [artworks, listings, ready]);
+
+  useEffect(() => {
+    let active = true;
+    setReady(false);
+    if (!userId) return () => { active = false; };
+    (async () => {
+      try {
+        const cloud = await loadCloudCatalog(userId);
+        if (!active) return;
+        const initial = cloud ?? loadCatalog();
+        setArtworks(initial.artworks);
+        setListings(initial.listings);
+        setReady(true);
+        if (!cloud) await saveCloudCatalog(userId, initial);
+      } catch (error) {
+        if (!active) return;
+        console.error("Could not load cloud catalog", error);
+        setReady(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!ready || !userId) return;
+    const snapshot = { artworks, listings };
+    saveQueue.current = saveQueue.current
+      .catch(() => undefined)
+      .then(() => saveCloudCatalog(userId, snapshot))
+      .catch((error) => { console.error("Could not save cloud catalog", error); });
+  }, [artworks, listings, ready, userId]);
 
   const stats = summarize(artworks, listings);
   const filtered = useMemo(() => {
@@ -82,7 +125,7 @@ function Index() {
             <Button variant="outline" className="border-ivory/30 bg-transparent text-ivory hover:bg-ivory/10 hover:text-ivory" onClick={() => setArtDialog(true)}>
               <Palette className="h-4 w-4" /> New artwork
             </Button>
-            <Button className="bg-coral text-ivory hover:bg-coral/90" onClick={() => setOpen(emptyListing(null))}>
+            <Button variant="ghost" className="text-ivory hover:bg-ivory/10 hover:text-ivory" onClick={() => { void supabase.auth.signOut(); }}>\n              <LogOut className="h-4 w-4" /> Sign out\n            </Button>\n            <Button className="bg-coral text-ivory hover:bg-coral/90" onClick={() => setOpen(emptyListing(null))}>
               <Plus className="h-4 w-4" /> New listing
             </Button>
           </div>
@@ -135,7 +178,7 @@ function Index() {
               <article key={a.id} className="paper grid overflow-hidden rounded-xl md:grid-cols-[240px_1fr]">
                 <div className="relative bg-secondary">
                   {a.image ? (
-                    <img src={a.image} alt={a.name} loading="lazy" className="h-56 w-full object-cover md:h-full" />
+                    <CatalogImage src={a.image} alt={a.name} loading="lazy" className="h-56 w-full object-cover md:h-full" />
                   ) : (
                     <div className="flex h-56 items-center justify-center text-muted-foreground md:h-full"><ImagePlus /></div>
                   )}
@@ -182,7 +225,7 @@ function Index() {
         onSave={saveListing}
         onDelete={(id) => setListings((ls) => ls.filter((l) => l.id !== id))}
       />
-      <ArtworkDialog open={artDialog} onOpenChange={setArtDialog} onCreate={(a) => setArtworks((x) => [...x, a])} />
+      <ArtworkDialog userId={userId} open={artDialog} onOpenChange={setArtDialog} onCreate={(a) => setArtworks((x) => [...x, a])} />
     </div>
   );
 }
@@ -204,7 +247,7 @@ function ListingRow({ l, onClick }: { l: Listing; onClick: () => void }) {
   return (
     <button onClick={onClick} className="flex w-full items-center gap-3 rounded-lg border bg-background/60 p-2.5 text-left transition hover:border-primary hover:bg-background">
       <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-secondary">
-        {l.photos[0] && <img src={l.photos[0]} alt="" loading="lazy" className="h-full w-full object-cover" />}
+        {l.photos[0] && <CatalogImage src={l.photos[0]} alt="" loading="lazy" className="h-full w-full object-cover" />}
       </div>
       <div className="min-w-0 flex-1">
         <div className="truncate font-semibold">{l.title || "Untitled"}</div>
@@ -224,15 +267,17 @@ function ListingRow({ l, onClick }: { l: Listing; onClick: () => void }) {
   );
 }
 
-function ArtworkDialog({ open, onOpenChange, onCreate }: { open: boolean; onOpenChange: (o: boolean) => void; onCreate: (a: Artwork) => void }) {
+function ArtworkDialog({ userId, open, onOpenChange, onCreate }: { userId: string; open: boolean; onOpenChange: (o: boolean) => void; onCreate: (a: Artwork) => void }) {
   const [name, setName] = useState("");
   const [image, setImage] = useState("");
   const [notes, setNotes] = useState("");
-  const onFile = (f?: File) => {
+  const onFile = async (f?: File) => {
     if (!f) return;
-    const r = new FileReader();
-    r.onload = () => setImage(String(r.result));
-    r.readAsDataURL(f);
+    try {
+      setImage(await uploadCatalogImage(userId, f));
+    } catch (error) {
+      console.error(error);
+    }
   };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
