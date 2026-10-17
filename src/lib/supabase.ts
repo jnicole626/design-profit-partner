@@ -56,3 +56,25 @@ export async function resolveCatalogImage(image: string): Promise<string> {
   if (error) throw error;
   return data.signedUrl;
 }
+
+/** Convert legacy data-URL images from the old browser-only catalog into private storage objects. */
+export async function migrateLegacyImages(userId: string, catalog: CatalogData): Promise<CatalogData> {
+  const migrate = async (value: string, label: string) => {
+    if (!value.startsWith("data:image/")) return value;
+    const response = await fetch(value);
+    const blob = await response.blob();
+    const file = new File([blob], label.replace(/[^a-zA-Z0-9._-]/g, "-") + ".image", {
+      type: blob.type || "image/png",
+    });
+    return uploadCatalogImage(userId, file);
+  };
+  const artworks = await Promise.all(catalog.artworks.map(async (artwork) => ({
+    ...artwork,
+    image: await migrate(artwork.image, `artwork-${artwork.id}`),
+  })));
+  const listings = await Promise.all(catalog.listings.map(async (listing) => ({
+    ...listing,
+    photos: await Promise.all(listing.photos.map((photo, index) => migrate(photo, `listing-${listing.id}-${index}`))),
+  })));
+  return { artworks, listings };
+}
