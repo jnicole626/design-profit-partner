@@ -13,7 +13,7 @@ import { CatalogImage } from "@/components/CatalogImage";
 import { loadCloudCatalog, saveCloudCatalog, supabase, uploadCatalogImage } from "@/lib/supabase";
 import { StatusBadge, StoreBadge } from "@/components/StoreBadge";
 import {
-  CATEGORIES, calcProfit, emptyListing, loadCatalog, money, saveCatalog, seedArtworks, seedListings, summarize, uid,
+  CATEGORIES, calcProfit, emptyListing, loadCatalog, money, seedArtworks, seedListings, summarize, uid,
   type Artwork, type Listing, type Store,
 } from "@/lib/catalog";
 
@@ -38,6 +38,7 @@ function Index() {
   const [listings, setListings] = useState<Listing[]>(seedListings);
   const [ready, setReady] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [catalogError, setCatalogError] = useState("");
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
   const [store, setStore] = useState<StoreFilter>("all");
   const [category, setCategory] = useState("all");
@@ -63,6 +64,7 @@ function Index() {
   useEffect(() => {
     let active = true;
     setReady(false);
+    setCatalogError("");
     if (!userId) return () => { active = false; };
     (async () => {
       try {
@@ -76,6 +78,7 @@ function Index() {
       } catch (error) {
         if (!active) return;
         console.error("Could not load cloud catalog", error);
+        setCatalogError(error instanceof Error ? error.message : "Could not load your cloud catalog.");
         setReady(false);
       }
     })();
