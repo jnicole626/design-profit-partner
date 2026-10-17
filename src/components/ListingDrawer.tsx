@@ -10,6 +10,8 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CATEGORIES, calcProfit, money, type Artwork, type Listing } from "@/lib/catalog";
 import { StoreBadge } from "./StoreBadge";
+import { CatalogImage } from "@/components/CatalogImage";
+import { uploadCatalogImage } from "@/lib/supabase";
 
 interface Props {
   listing: Listing | null;
@@ -24,7 +26,7 @@ const copy = (text: string, what: string) => {
   toast.success(`${what} copied`);
 };
 
-export function ListingDrawer({ listing, artworks, onClose, onSave, onDelete }: Props) {
+export function ListingDrawer({ userId, listing, artworks, onClose, onSave, onDelete }: Props) {
   const [d, setD] = useState<Listing | null>(listing);
   const [tagInput, setTagInput] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
@@ -38,12 +40,16 @@ export function ListingDrawer({ listing, artworks, onClose, onSave, onDelete }: 
     if (t.length) set("tags", Array.from(new Set([...d.tags, ...t])));
     setTagInput("");
   };
-  const onFile = (files: FileList | null) => {
-    Array.from(files ?? []).forEach((f) => {
-      const r = new FileReader();
-      r.onload = () => setD((cur) => (cur ? { ...cur, photos: [...cur.photos, String(r.result)] } : cur));
-      r.readAsDataURL(f);
-    });
+  const onFile = async (files: FileList | null) => {
+    for (const file of Array.from(files ?? [])) {
+      try {
+        const path = await uploadCatalogImage(userId, file);
+        setD((cur) => (cur ? { ...cur, photos: [...cur.photos, path] } : cur));
+      } catch (error) {
+        console.error("Image upload failed", error);
+        toast.error("Couldn't upload that image. Check your connection and try again.");
+      }
+    }
   };
 
   return (
@@ -64,7 +70,7 @@ export function ListingDrawer({ listing, artworks, onClose, onSave, onDelete }: 
             <div className="grid grid-cols-3 gap-2">
               {d.photos.map((p, i) => (
                 <div key={i} className="group relative aspect-square overflow-hidden rounded-md border">
-                  <img src={p} alt="" className="h-full w-full object-cover" />
+                  <CatalogImage src={p} alt="" className="h-full w-full object-cover" />
                   <button
                     onClick={() => set("photos", d.photos.filter((_, j) => j !== i))}
                     className="absolute right-1 top-1 rounded-full bg-charcoal/80 p-1 text-ivory opacity-0 group-hover:opacity-100"
