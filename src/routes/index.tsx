@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ListingDrawer } from "@/components/ListingDrawer";
 import { SignInScreen } from "@/components/SignInScreen";
 import { CatalogImage } from "@/components/CatalogImage";
-import { loadCloudCatalog, saveCloudCatalog, supabase, uploadCatalogImage } from "@/lib/supabase";
+import { loadCloudCatalog, migrateLegacyImages, saveCloudCatalog, supabase, uploadCatalogImage } from "@/lib/supabase";
 import { StatusBadge, StoreBadge } from "@/components/StoreBadge";
 import {
   CATEGORIES, calcProfit, emptyListing, loadCatalog, money, seedArtworks, seedListings, summarize, uid,
@@ -70,7 +70,7 @@ function Index() {
       try {
         const cloud = await loadCloudCatalog(userId);
         if (!active) return;
-        const initial = cloud ?? loadCatalog();
+        const initial = cloud ?? await migrateLegacyImages(userId, loadCatalog());
         setArtworks(initial.artworks);
         setListings(initial.listings);
         setReady(true);
