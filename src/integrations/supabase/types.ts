@@ -14,7 +14,110 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      artworks: {
+        Row: {
+          created_at: string
+          id: string
+          image: string
+          name: string
+          notes: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          image?: string
+          name: string
+          notes?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image?: string
+          name?: string
+          notes?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      listings: {
+        Row: {
+          artwork_id: string | null
+          base_cost: number
+          category: string
+          created_at: string
+          description: string
+          dpi_check: boolean
+          id: string
+          photos: string[]
+          print_provider: string
+          production_notes: string
+          retail_price: number
+          royalty_rate: number
+          sku: string
+          status: string
+          store: string
+          tags: string[]
+          title: string
+          url: string
+          user_id: string
+          variant_notes: string
+        }
+        Insert: {
+          artwork_id?: string | null
+          base_cost?: number
+          category: string
+          created_at?: string
+          description?: string
+          dpi_check?: boolean
+          id: string
+          photos?: string[]
+          print_provider?: string
+          production_notes?: string
+          retail_price?: number
+          royalty_rate?: number
+          sku?: string
+          status?: string
+          store: string
+          tags?: string[]
+          title?: string
+          url?: string
+          user_id?: string
+          variant_notes?: string
+        }
+        Update: {
+          artwork_id?: string | null
+          base_cost?: number
+          category?: string
+          created_at?: string
+          description?: string
+          dpi_check?: boolean
+          id?: string
+          photos?: string[]
+          print_provider?: string
+          production_notes?: string
+          retail_price?: number
+          royalty_rate?: number
+          sku?: string
+          status?: string
+          store?: string
+          tags?: string[]
+          title?: string
+          url?: string
+          user_id?: string
+          variant_notes?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listings_artwork_id_user_id_fkey"
+            columns: ["artwork_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "artworks"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
