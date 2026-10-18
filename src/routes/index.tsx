@@ -103,7 +103,7 @@ function CloudCatalog({ userId }: { userId: string }) {
       </header>
 
       <main className="mx-auto max-w-7xl space-y-8 px-6 py-8">
-        {artworks.length === 0 && listings.length === 0 && <div className="flex flex-wrap items-center gap-3"><span className="text-sm text-muted-foreground">Your cloud catalog is empty.</span><Button variant="outline" disabled={importing} onClick={importCatalog}>{importing ? "Importing…" : "Import this browser’s catalog"}</Button></div>}
+        <div className="flex flex-wrap items-center gap-3">{artworks.length === 0 && listings.length === 0 && <span className="text-sm text-muted-foreground">Your cloud catalog is empty.</span>}<Button variant="outline" disabled={importing} onClick={importCatalog}>{importing ? "Importing…" : "Import this browser’s catalog"}</Button></div>
         {/* Stats */}
         <section className="grid gap-4 sm:grid-cols-3">
           <Stat icon={<Layers />} label="Total artworks" value={String(stats.totalArtworks)} tone="bg-teal" />
