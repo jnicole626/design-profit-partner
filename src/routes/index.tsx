@@ -1,5 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { CloudSignIn } from "@/components/CloudSignIn";
+import { useCloudSession } from "@/components/CloudSession";
+import { cloudCatalogKey, fetchCloudCatalog, saveCloudArtwork, saveCloudListing, deleteCloudListing, importBrowserCatalog } from "@/lib/cloud-catalog";
 import { ImagePlus, Layers, Palette, Plus, Search, Sparkles, Tag, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ListingDrawer } from "@/components/ListingDrawer";
 import { StatusBadge, StoreBadge } from "@/components/StoreBadge";
 import {
-  CATEGORIES, calcProfit, emptyListing, loadCatalog, money, saveCatalog, seedArtworks, seedListings, summarize, uid,
+  CATEGORIES, calcProfit, emptyListing, loadCatalog, money, summarize, uid,
   type Artwork, type Listing, type Store,
 } from "@/lib/catalog";
 
@@ -31,22 +37,29 @@ export const Route = createFileRoute("/")({
 type StoreFilter = "all" | Store;
 
 function Index() {
-  const [artworks, setArtworks] = useState<Artwork[]>(seedArtworks);
-  const [listings, setListings] = useState<Listing[]>(seedListings);
-  const [ready, setReady] = useState(false);
+  const { user, ready } = useCloudSession();
+  if (!ready) return <p className="p-8 text-muted-foreground">Opening your catalog…</p>;
+  if (!user) return <main className="mx-auto max-w-7xl space-y-6 px-6 py-8"><h1 className="font-display text-3xl font-bold">The Raw Palette</h1><CloudSignIn /></main>;
+  return <Suspense fallback={<p className="p-8 text-muted-foreground">Loading cloud catalog…</p>}><CloudCatalog key={user.id} userId={user.id} /></Suspense>;
+}
+
+function CloudCatalog({ userId }: { userId: string }) {
+  const queryClient = useQueryClient();
+  const { data: { artworks, listings } } = useSuspenseQuery({ queryKey: cloudCatalogKey(userId), queryFn: fetchCloudCatalog, staleTime: 60_000, refetchInterval: 30 * 60_000 });
+  const [importing, setImporting] = useState(false);
   const [store, setStore] = useState<StoreFilter>("all");
   const [category, setCategory] = useState("all");
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<Listing | null>(null);
   const [artDialog, setArtDialog] = useState(false);
 
-  useEffect(() => {
-    const c = loadCatalog();
-    setArtworks(c.artworks);
-    setListings(c.listings);
-    setReady(true);
-  }, []);
-  useEffect(() => { if (ready) saveCatalog({ artworks, listings }); }, [artworks, listings, ready]);
+  const refresh = () => queryClient.invalidateQueries({ queryKey: cloudCatalogKey(userId) });
+  const importCatalog = async () => {
+    setImporting(true);
+    try { await importBrowserCatalog(loadCatalog()); await refresh(); toast.success("Browser catalog imported to Cloud"); }
+    catch (error) { toast.error(error instanceof Error ? error.message : "Import failed. Your browser copy is unchanged."); }
+    finally { setImporting(false); }
+  };
 
   const stats = summarize(artworks, listings);
   const filtered = useMemo(() => {
@@ -61,8 +74,7 @@ function Index() {
   }, [listings, artworks, store, category, q]);
   const filtering = store !== "all" || category !== "all" || q.trim() !== "";
 
-  const saveListing = (l: Listing) =>
-    setListings((ls) => (ls.some((x) => x.id === l.id) ? ls.map((x) => (x.id === l.id ? l : x)) : [...ls, l]));
+  const saveListing = async (l: Listing) => { await saveCloudListing(l); await refresh(); };
   const standalone = filtered.filter((l) => !l.artworkId || !artworks.some((a) => a.id === l.artworkId));
 
   return (
@@ -79,6 +91,7 @@ function Index() {
             <p className="mt-1 text-xs uppercase tracking-[0.3em] text-ivory/60">Design & listing studio</p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => supabase.auth.signOut()}>Sign out</Button>
             <Button variant="outline" className="border-ivory/30 bg-transparent text-ivory hover:bg-ivory/10 hover:text-ivory" onClick={() => setArtDialog(true)}>
               <Palette className="h-4 w-4" /> New artwork
             </Button>
@@ -90,6 +103,7 @@ function Index() {
       </header>
 
       <main className="mx-auto max-w-7xl space-y-8 px-6 py-8">
+        <div className="flex flex-wrap items-center gap-3">{artworks.length === 0 && listings.length === 0 && <span className="text-sm text-muted-foreground">Your cloud catalog is empty.</span>}<Button variant="outline" disabled={importing} onClick={importCatalog}>{importing ? "Importing…" : "Import this browser’s catalog"}</Button></div>
         {/* Stats */}
         <section className="grid gap-4 sm:grid-cols-3">
           <Stat icon={<Layers />} label="Total artworks" value={String(stats.totalArtworks)} tone="bg-teal" />
@@ -180,9 +194,9 @@ function Index() {
         artworks={artworks}
         onClose={() => setOpen(null)}
         onSave={saveListing}
-        onDelete={(id) => setListings((ls) => ls.filter((l) => l.id !== id))}
+        onDelete={async (id) => { await deleteCloudListing(id); await refresh(); }}
       />
-      <ArtworkDialog open={artDialog} onOpenChange={setArtDialog} onCreate={(a) => setArtworks((x) => [...x, a])} />
+      <ArtworkDialog open={artDialog} onOpenChange={setArtDialog} onCreate={async (a) => { await saveCloudArtwork(a); await refresh(); }} />
     </div>
   );
 }
@@ -224,10 +238,11 @@ function ListingRow({ l, onClick }: { l: Listing; onClick: () => void }) {
   );
 }
 
-function ArtworkDialog({ open, onOpenChange, onCreate }: { open: boolean; onOpenChange: (o: boolean) => void; onCreate: (a: Artwork) => void }) {
+function ArtworkDialog({ open, onOpenChange, onCreate }: { open: boolean; onOpenChange: (o: boolean) => void; onCreate: (a: Artwork) => Promise<void> }) {
   const [name, setName] = useState("");
   const [image, setImage] = useState("");
   const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
   const onFile = (f?: File) => {
     if (!f) return;
     const r = new FileReader();
@@ -250,13 +265,18 @@ function ArtworkDialog({ open, onOpenChange, onCreate }: { open: boolean; onOpen
           <div><Label>Notes</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="File sizes, DPI, color notes…" /></div>
           <Button
             className="w-full"
-            disabled={!name.trim()}
-            onClick={() => {
-              onCreate({ id: uid(), name: name.trim(), image, notes, createdAt: new Date().toISOString().slice(0, 10) });
-              setName(""); setImage(""); setNotes(""); onOpenChange(false);
+            disabled={!name.trim() || saving}
+            onClick={async () => {
+              setSaving(true);
+              try {
+                await onCreate({ id: uid(), name: name.trim(), image, notes, createdAt: new Date().toISOString().slice(0, 10) });
+                setName(""); setImage(""); setNotes(""); onOpenChange(false);
+                toast.success("Artwork saved to Cloud");
+              } catch (error) { toast.error(error instanceof Error ? error.message : "Artwork could not be saved. Please retry."); }
+              finally { setSaving(false); }
             }}
           >
-            Create artwork
+            {saving ? "Saving…" : "Create artwork"}
           </Button>
         </div>
       </DialogContent>

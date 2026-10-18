@@ -15,8 +15,8 @@ interface Props {
   listing: Listing | null;
   artworks: Artwork[];
   onClose: () => void;
-  onSave: (l: Listing) => void;
-  onDelete: (id: string) => void;
+  onSave: (l: Listing) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
 }
 
 const copy = (text: string, what: string) => {
@@ -28,6 +28,7 @@ export function ListingDrawer({ listing, artworks, onClose, onSave, onDelete }: 
   const [d, setD] = useState<Listing | null>(listing);
   const [tagInput, setTagInput] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
+  const [saving, setSaving] = useState(false);
   useEffect(() => setD(listing), [listing]);
   if (!d) return <Sheet open={false} />;
 
@@ -215,12 +216,22 @@ export function ListingDrawer({ listing, artworks, onClose, onSave, onDelete }: 
         </div>
 
         <div className="fixed bottom-0 right-0 flex w-full gap-2 border-t bg-background/95 p-4 backdrop-blur sm:max-w-xl">
-          <Button variant="ghost" className="text-destructive" onClick={() => { onDelete(d.id); onClose(); }}>
+          <Button variant="ghost" className="text-destructive" disabled={saving} onClick={async () => {
+            setSaving(true);
+            try { await onDelete(d.id); onClose(); toast.success("Listing deleted"); }
+            catch (error) { toast.error(error instanceof Error ? error.message : "Delete failed. Please retry."); }
+            finally { setSaving(false); }
+          }}>
             <Trash2 className="h-4 w-4" /> Delete
           </Button>
           <div className="flex-1" />
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => { onSave(d); onClose(); toast.success("Listing saved"); }}>Save listing</Button>
+          <Button disabled={saving} onClick={async () => {
+            setSaving(true);
+            try { await onSave(d); onClose(); toast.success("Listing saved to Cloud"); }
+            catch (error) { toast.error(error instanceof Error ? error.message : "Save failed. Please retry."); }
+            finally { setSaving(false); }
+          }}>{saving ? "Saving…" : "Save listing"}</Button>
         </div>
       </SheetContent>
     </Sheet>
