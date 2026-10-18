@@ -14,12 +14,14 @@ async function ownerId() {
 export function storageReference(value: string): string {
   if (!value.includes("/storage/v1/object/sign/")) return value;
   const parts = value.split("/storage/v1/object/sign/");
-  return `storage://${decodeURIComponent(parts[1].split("?")[0])}`;
+  const path = parts[1]?.split("?")[0];
+  return path ? `storage://${decodeURIComponent(path)}` : value;
 }
 
 async function imageForDisplay(value: string): Promise<string> {
   if (!value.startsWith("storage://")) return value;
   const [bucket, ...parts] = value.slice(10).split("/");
+  if (!bucket || !parts.length) throw new Error("Invalid cloud image reference.");
   const { data, error } = await supabase.storage.from(bucket).createSignedUrl(parts.join("/"), 3600);
   if (error) throw error;
   return data.signedUrl;
