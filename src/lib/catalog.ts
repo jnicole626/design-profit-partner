@@ -74,8 +74,8 @@ export function summarize(artworks: Artwork[], listings: Listing[]) {
 
 export const uid = () => Math.random().toString(36).slice(2, 10);
 
-export const emptyListing = (artworkId: string | null, store: Store = "printify"): Listing => ({
-  id: uid(),
+export const emptyListing = (artworkId: string | null, store: Store = "printify", id = uid()): Listing => ({
+  id,
   artworkId,
   store,
   title: "",
@@ -95,8 +95,9 @@ export const emptyListing = (artworkId: string | null, store: Store = "printify"
   productionNotes: "",
 });
 
+let sampleId = 0;
 const L = (p: Partial<Listing> & Pick<Listing, "artworkId" | "store" | "title">): Listing => ({
-  ...emptyListing(p.artworkId, p.store),
+  ...emptyListing(p.artworkId, p.store, `sample-${++sampleId}`),
   ...p,
 });
 
