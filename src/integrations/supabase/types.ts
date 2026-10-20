@@ -41,6 +41,27 @@ export type Database = {
         }
         Relationships: []
       }
+      categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          name: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       listings: {
         Row: {
           artwork_id: string | null
@@ -58,6 +79,7 @@ export type Database = {
           sku: string
           status: string
           store: string
+          supplier: string
           tags: string[]
           title: string
           url: string
@@ -80,6 +102,7 @@ export type Database = {
           sku?: string
           status?: string
           store: string
+          supplier?: string
           tags?: string[]
           title?: string
           url?: string
@@ -102,6 +125,7 @@ export type Database = {
           sku?: string
           status?: string
           store?: string
+          supplier?: string
           tags?: string[]
           title?: string
           url?: string
