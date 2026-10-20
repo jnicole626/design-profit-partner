@@ -1,7 +1,7 @@
-import type { Status, Store } from "@/lib/catalog";
+import type { Status, Supplier } from "@/lib/catalog";
 
-export function StoreBadge({ store }: { store: Store }) {
-  return store === "printify" ? (
+export function StoreBadge({ supplier }: { supplier: Supplier }) {
+  return supplier === "printify" ? (
     <span className="inline-flex items-center gap-1 rounded-full bg-teal px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-ivory">
       <span className="h-1.5 w-1.5 rounded-full bg-aqua" /> Printify
     </span>

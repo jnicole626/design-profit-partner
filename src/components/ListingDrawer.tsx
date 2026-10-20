@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Copy, ExternalLink, ImagePlus, Trash2, X } from "lucide-react";
+import { Copy, ExternalLink, ImagePlus, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
@@ -8,12 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CATEGORIES, calcProfit, money, type Artwork, type Listing } from "@/lib/catalog";
+import { calcProfit, money, type Artwork, type Listing } from "@/lib/catalog";
 import { StoreBadge } from "./StoreBadge";
 
 interface Props {
   listing: Listing | null;
   artworks: Artwork[];
+  categories: string[];
+  onAddCategory: (name: string) => Promise<void>;
   onClose: () => void;
   onSave: (l: Listing) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
@@ -24,12 +26,20 @@ const copy = (text: string, what: string) => {
   toast.success(`${what} copied`);
 };
 
-export function ListingDrawer({ listing, artworks, onClose, onSave, onDelete }: Props) {
+const NEW_CATEGORY = "__new__";
+
+export function ListingDrawer({ listing, artworks, categories, onAddCategory, onClose, onSave, onDelete }: Props) {
   const [d, setD] = useState<Listing | null>(listing);
   const [tagInput, setTagInput] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
+  const [newCategory, setNewCategory] = useState("");
+  const [addingCategory, setAddingCategory] = useState(false);
   const [saving, setSaving] = useState(false);
-  useEffect(() => setD(listing), [listing]);
+  useEffect(() => {
+    setD(listing);
+    setAddingCategory(false);
+    setNewCategory("");
+  }, [listing]);
   if (!d) return <Sheet open={false} />;
 
   const set = <K extends keyof Listing>(k: K, v: Listing[K]) => setD({ ...d, [k]: v });
@@ -46,13 +56,27 @@ export function ListingDrawer({ listing, artworks, onClose, onSave, onDelete }: 
       r.readAsDataURL(f);
     });
   };
+  const allCategories = Array.from(new Set([...categories, d.category].filter(Boolean)));
+  const saveNewCategory = async () => {
+    const name = newCategory.trim();
+    if (!name) return;
+    try {
+      await onAddCategory(name);
+      set("category", name);
+      setAddingCategory(false);
+      setNewCategory("");
+      toast.success(`Category “${name}” added`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Category could not be saved. Please retry.");
+    }
+  };
 
   return (
     <Sheet open={!!listing} onOpenChange={(o) => !o && onClose()}>
       <SheetContent className="w-full overflow-y-auto bg-background sm:max-w-xl">
         <SheetHeader className="space-y-2 text-left">
           <div className="flex items-center gap-2">
-            <StoreBadge store={d.store} />
+            <StoreBadge supplier={d.supplier} />
             <span className="text-xs uppercase tracking-widest text-muted-foreground">{d.category}</span>
           </div>
           <SheetTitle className="font-display text-2xl">{d.title || "New listing"}</SheetTitle>
@@ -91,8 +115,11 @@ export function ListingDrawer({ listing, artworks, onClose, onSave, onDelete }: 
             <Field label="Title" className="col-span-2">
               <Input value={d.title} onChange={(e) => set("title", e.target.value)} />
             </Field>
-            <Field label="Store">
-              <Select value={d.store} onValueChange={(v) => set("store", v as Listing["store"])}>
+            <Field label="Store name">
+              <Input value={d.store} placeholder="e.g. Raw Palette on Etsy" onChange={(e) => set("store", e.target.value)} />
+            </Field>
+            <Field label="Supplier">
+              <Select value={d.supplier} onValueChange={(v) => set("supplier", v as Listing["supplier"])}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="printify">Printify</SelectItem>
@@ -111,12 +138,30 @@ export function ListingDrawer({ listing, artworks, onClose, onSave, onDelete }: 
               </Select>
             </Field>
             <Field label="Category">
-              <Select value={d.category} onValueChange={(v) => set("category", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              {addingCategory ? (
+                <div className="flex gap-1.5">
+                  <Input
+                    autoFocus
+                    placeholder="New category name"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveNewCategory(); } if (e.key === "Escape") setAddingCategory(false); }}
+                  />
+                  <Button size="sm" variant="secondary" onClick={saveNewCategory} disabled={!newCategory.trim()}>Add</Button>
+                </div>
+              ) : (
+                <div className="flex gap-1.5">
+                  <Select value={d.category} onValueChange={(v) => set("category", v)}>
+                    <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {allCategories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Button size="sm" variant="outline" aria-label="Add new category" onClick={() => setAddingCategory(true)}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </Field>
             <Field label="Artwork">
               <Select value={d.artworkId ?? "none"} onValueChange={(v) => set("artworkId", v === "none" ? null : v)}>
@@ -136,7 +181,7 @@ export function ListingDrawer({ listing, artworks, onClose, onSave, onDelete }: 
               <Field label="Retail price ($)">
                 <Input type="number" step="0.01" value={d.retailPrice} onChange={(e) => set("retailPrice", Number(e.target.value))} />
               </Field>
-              {d.store === "printify" ? (
+              {d.supplier === "printify" ? (
                 <Field label="Base / production cost ($)">
                   <Input type="number" step="0.01" value={d.baseCost} onChange={(e) => set("baseCost", Number(e.target.value))} />
                 </Field>
@@ -149,7 +194,7 @@ export function ListingDrawer({ listing, artworks, onClose, onSave, onDelete }: 
             <div className="mt-4 flex items-end justify-between border-t border-dashed pt-3">
               <div>
                 <div className="text-xs uppercase tracking-widest text-muted-foreground">
-                  {d.store === "printify" ? "Net profit / unit" : "Royalty payout / unit"}
+                  {d.supplier === "printify" ? "Net profit / unit" : "Royalty payout / unit"}
                 </div>
                 <div className={`font-display text-3xl ${profit.net < 0 ? "text-destructive" : "text-primary"}`}>{money(profit.net)}</div>
               </div>

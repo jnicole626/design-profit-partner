@@ -5,8 +5,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { CloudSignIn } from "@/components/CloudSignIn";
 import { useCloudSession } from "@/components/CloudSession";
-import { cloudCatalogKey, fetchCloudCatalog, saveCloudArtwork, saveCloudListing, deleteCloudListing, importBrowserCatalog } from "@/lib/cloud-catalog";
-import { ImagePlus, Layers, Palette, Plus, Search, Sparkles, Tag, TrendingUp } from "lucide-react";
+import { cloudCatalogKey, fetchCloudCatalog, saveCloudArtwork, saveCloudCategory, saveCloudListing, deleteCloudListing, importBrowserCatalog } from "@/lib/cloud-catalog";
+import { CloudUpload, ImagePlus, Layers, Palette, Plus, Search, Sparkles, Tag, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,15 +16,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ListingDrawer } from "@/components/ListingDrawer";
 import { StatusBadge, StoreBadge } from "@/components/StoreBadge";
 import {
-  CATEGORIES, calcProfit, emptyListing, loadCatalog, money, summarize, uid,
-  type Artwork, type Listing, type Store,
+  CATEGORIES, calcProfit, emptyListing, hasBrowserCatalog, loadCatalog, money, summarize, uid,
+  type Artwork, type Listing, type Supplier,
 } from "@/lib/catalog";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "The Raw Palette — Product Design Studio" },
-      { name: "description", content: "Track artwork, Printify and Zazzle listings, profit, photos, tags and production notes in one place." },
+      { name: "description", content: "Track artwork, store listings, profit, photos, tags and production notes in one place." },
       { property: "og:title", content: "The Raw Palette — Product Design Studio" },
       { property: "og:description", content: "Artwork and store listing tracker for Printify and Zazzle sellers." },
       { property: "og:type", content: "website" },
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type StoreFilter = "all" | Store;
+type SupplierFilter = "all" | Supplier;
 
 function Index() {
   const { user, ready } = useCloudSession();
@@ -45,9 +45,10 @@ function Index() {
 
 function CloudCatalog({ userId }: { userId: string }) {
   const queryClient = useQueryClient();
-  const { data: { artworks, listings } } = useSuspenseQuery({ queryKey: cloudCatalogKey(userId), queryFn: fetchCloudCatalog, staleTime: 60_000, refetchInterval: 30 * 60_000 });
+  const { data: { artworks, listings, categories } } = useSuspenseQuery({ queryKey: cloudCatalogKey(userId), queryFn: fetchCloudCatalog, staleTime: 60_000, refetchInterval: 30 * 60_000 });
   const [importing, setImporting] = useState(false);
-  const [store, setStore] = useState<StoreFilter>("all");
+  const [importDone, setImportDone] = useState(false);
+  const [supplier, setSupplier] = useState<SupplierFilter>("all");
   const [category, setCategory] = useState("all");
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<Listing | null>(null);
@@ -56,26 +57,36 @@ function CloudCatalog({ userId }: { userId: string }) {
   const refresh = () => queryClient.invalidateQueries({ queryKey: cloudCatalogKey(userId) });
   const importCatalog = async () => {
     setImporting(true);
-    try { await importBrowserCatalog(loadCatalog()); await refresh(); toast.success("Browser catalog imported to Cloud"); }
-    catch (error) { toast.error(error instanceof Error ? error.message : "Import failed. Your browser copy is unchanged."); }
-    finally { setImporting(false); }
+    try {
+      await importBrowserCatalog(loadCatalog());
+      await refresh();
+      setImportDone(true);
+      toast.success("Browser catalog imported to Cloud, photos included");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Import failed. Your browser copy is unchanged.");
+    } finally {
+      setImporting(false);
+    }
   };
 
   const stats = summarize(artworks, listings);
+  const allCategories = useMemo(() => Array.from(new Set([...CATEGORIES, ...categories])), [categories]);
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return listings.filter((l) => {
-      if (store !== "all" && l.store !== store) return false;
+      if (supplier !== "all" && l.supplier !== supplier) return false;
       if (category !== "all" && l.category !== category) return false;
       if (!term) return true;
       const art = artworks.find((a) => a.id === l.artworkId)?.name ?? "";
-      return [l.title, l.description, l.sku, art, ...l.tags].some((s) => s.toLowerCase().includes(term));
+      return [l.title, l.description, l.sku, l.store, art, ...l.tags].some((s) => s.toLowerCase().includes(term));
     });
-  }, [listings, artworks, store, category, q]);
-  const filtering = store !== "all" || category !== "all" || q.trim() !== "";
+  }, [listings, artworks, supplier, category, q]);
+  const filtering = supplier !== "all" || category !== "all" || q.trim() !== "";
 
   const saveListing = async (l: Listing) => { await saveCloudListing(l); await refresh(); };
+  const addCategory = async (name: string) => { await saveCloudCategory(name); await refresh(); };
   const standalone = filtered.filter((l) => !l.artworkId || !artworks.some((a) => a.id === l.artworkId));
+  const showImport = !importDone && hasBrowserCatalog();
 
   return (
     <div className="min-h-screen">
@@ -103,7 +114,23 @@ function CloudCatalog({ userId }: { userId: string }) {
       </header>
 
       <main className="mx-auto max-w-7xl space-y-8 px-6 py-8">
-        <div className="flex flex-wrap items-center gap-3">{artworks.length === 0 && listings.length === 0 && <span className="text-sm text-muted-foreground">Your cloud catalog is empty.</span>}<Button variant="outline" disabled={importing} onClick={importCatalog}>{importing ? "Importing…" : "Import this browser’s catalog"}</Button></div>
+        {showImport && (
+          <section className="paper flex flex-wrap items-center justify-between gap-4 rounded-xl border-2 border-gold/60 p-5">
+            <div>
+              <h2 className="font-display text-lg font-bold tracking-wide">Move your browser catalog to the cloud</h2>
+              <p className="text-sm text-muted-foreground">
+                This browser still holds a saved catalog. One click copies every artwork, listing and photo into your private cloud catalog — safe to retry, nothing is duplicated.
+              </p>
+            </div>
+            <Button className="bg-gold text-charcoal hover:bg-gold/90" disabled={importing} onClick={importCatalog}>
+              <CloudUpload className="h-4 w-4" /> {importing ? "Importing…" : "Import my browser catalog"}
+            </Button>
+          </section>
+        )}
+        {artworks.length === 0 && listings.length === 0 && !showImport && (
+          <p className="text-sm text-muted-foreground">Your cloud catalog is empty — add an artwork or listing to begin.</p>
+        )}
+
         {/* Stats */}
         <section className="grid gap-4 sm:grid-cols-3">
           <Stat icon={<Layers />} label="Total artworks" value={String(stats.totalArtworks)} tone="bg-teal" />
@@ -114,15 +141,15 @@ function CloudCatalog({ userId }: { userId: string }) {
         {/* Filters */}
         <section className="paper flex flex-wrap items-center gap-3 rounded-xl p-3">
           <div className="flex rounded-lg bg-secondary p-1">
-            {(["all", "printify", "zazzle"] as StoreFilter[]).map((s) => (
+            {(["all", "printify", "zazzle"] as SupplierFilter[]).map((s) => (
               <button
                 key={s}
-                onClick={() => setStore(s)}
+                onClick={() => setSupplier(s)}
                 className={`rounded-md px-4 py-1.5 text-sm font-semibold capitalize transition ${
-                  store === s ? (s === "zazzle" ? "bg-coral text-ivory" : s === "printify" ? "bg-teal text-ivory" : "bg-charcoal text-ivory") : "text-muted-foreground hover:text-foreground"
+                  supplier === s ? (s === "zazzle" ? "bg-coral text-ivory" : s === "printify" ? "bg-teal text-ivory" : "bg-charcoal text-ivory") : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {s}
+                {s === "all" ? "All suppliers" : s}
               </button>
             ))}
           </div>
@@ -130,12 +157,12 @@ function CloudCatalog({ userId }: { userId: string }) {
             <SelectTrigger className="w-44 bg-card"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All categories</SelectItem>
-              {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              {allCategories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
           <div className="relative min-w-60 flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input className="bg-card pl-9" placeholder="Search tags, titles, SKUs…" value={q} onChange={(e) => setQ(e.target.value)} />
+            <Input className="bg-card pl-9" placeholder="Search tags, titles, stores, SKUs…" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           <span className="text-sm text-muted-foreground">{filtered.length} listings</span>
         </section>
@@ -192,6 +219,8 @@ function CloudCatalog({ userId }: { userId: string }) {
       <ListingDrawer
         listing={open}
         artworks={artworks}
+        categories={allCategories}
+        onAddCategory={addCategory}
         onClose={() => setOpen(null)}
         onSave={saveListing}
         onDelete={async (id) => { await deleteCloudListing(id); await refresh(); }}
@@ -223,7 +252,8 @@ function ListingRow({ l, onClick }: { l: Listing; onClick: () => void }) {
       <div className="min-w-0 flex-1">
         <div className="truncate font-semibold">{l.title || "Untitled"}</div>
         <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <StoreBadge store={l.store} />
+          <StoreBadge supplier={l.supplier} />
+          {l.store && <span className="font-medium text-foreground/80">{l.store}</span>}
           <span>{l.category}</span>
           {l.sku && <span className="hidden sm:inline">· {l.sku}</span>}
         </div>
