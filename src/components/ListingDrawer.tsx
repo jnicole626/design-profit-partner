@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { calcProfit, money, type Artwork, type Listing } from "@/lib/catalog";
+import { calcProfit, calcVariationProfit, money, uid, type Artwork, type Listing, type ListingVariation } from "@/lib/catalog";
 import { StoreBadge } from "./StoreBadge";
 
 interface Props {
@@ -49,6 +49,9 @@ export function ListingDrawer({ listing, artworks, categories, onAddCategory, on
     if (t.length) set("tags", Array.from(new Set([...d.tags, ...t])));
     setTagInput("");
   };
+  const addVariation = () => set("variations", [...d.variations, { id: uid(), name: "", sku: d.sku, retailPrice: d.retailPrice, baseCost: d.baseCost, royaltyRate: d.royaltyRate }]);
+  const updateVariation = <K extends keyof ListingVariation>(id: string, key: K, value: ListingVariation[K]) =>
+    set("variations", d.variations.map((v) => v.id === id ? { ...v, [key]: value } : v));
   const onFile = (files: FileList | null) => {
     Array.from(files ?? []).forEach((f) => {
       const r = new FileReader();
@@ -203,6 +206,35 @@ export function ListingDrawer({ listing, artworks, categories, onAddCategory, on
                 <div className="font-display text-2xl text-gold">{profit.margin}%</div>
               </div>
             </div>
+          </section>
+
+          {/* Variations */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <SectionTitle>Variations & pricing</SectionTitle>
+              <Button size="sm" variant="outline" onClick={addVariation}><Plus className="h-4 w-4" /> Add variation</Button>
+            </div>
+            {d.variations.length === 0 ? (
+              <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">Combine sizes, colors, or other options here when each one has a different price or production cost.</p>
+            ) : (
+              <div className="space-y-2">
+                {d.variations.map((v) => {
+                  const p = calcVariationProfit(v, d.supplier);
+                  return <div key={v.id} className="rounded-lg border bg-card p-3">
+                    <div className="mb-2 flex items-center gap-2">
+                      <Input className="flex-1" placeholder="e.g. Small / Natural" value={v.name} onChange={(e) => updateVariation(v.id, "name", e.target.value)} />
+                      <button onClick={() => set("variations", d.variations.filter((x) => x.id !== v.id))} aria-label="Remove variation" className="rounded p-1 text-muted-foreground hover:text-destructive"><X className="h-4 w-4" /></button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      <Input aria-label="Variation SKU" placeholder="SKU" value={v.sku} onChange={(e) => updateVariation(v.id, "sku", e.target.value)} />
+                      <Input aria-label="Variation retail price" type="number" step="0.01" placeholder="Retail" value={v.retailPrice} onChange={(e) => updateVariation(v.id, "retailPrice", Number(e.target.value))} />
+                      {d.supplier === "printify" ? <Input aria-label="Variation base cost" type="number" step="0.01" placeholder="Cost" value={v.baseCost} onChange={(e) => updateVariation(v.id, "baseCost", Number(e.target.value))} /> : <Input aria-label="Variation royalty rate" type="number" step="0.5" placeholder="Royalty %" value={v.royaltyRate} onChange={(e) => updateVariation(v.id, "royaltyRate", Number(e.target.value))} />}
+                      <div className="flex items-center justify-end rounded-md bg-secondary px-2 text-sm font-semibold text-primary">+{money(p.net)}</div>
+                    </div>
+                  </div>;
+                })}
+              </div>
+            )}
           </section>
 
           {/* Copy */}
