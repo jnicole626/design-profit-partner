@@ -67,6 +67,7 @@ export type Database = {
           artwork_id: string | null
           base_cost: number
           category: string
+          categories: string[]
           created_at: string
           description: string
           dpi_check: boolean
@@ -91,6 +92,7 @@ export type Database = {
           artwork_id?: string | null
           base_cost?: number
           category: string
+          categories?: string[]
           created_at?: string
           description?: string
           dpi_check?: boolean
@@ -115,6 +117,7 @@ export type Database = {
           artwork_id?: string | null
           base_cost?: number
           category?: string
+          categories?: string[]
           created_at?: string
           description?: string
           dpi_check?: boolean

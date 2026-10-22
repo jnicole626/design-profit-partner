@@ -77,7 +77,7 @@ function CloudCatalog({ userId }: { userId: string }) {
     const term = q.trim().toLowerCase();
     return listings.filter((l) => {
       if (supplier !== "all" && l.supplier !== supplier) return false;
-      if (category !== "all" && l.category !== category) return false;
+      if (category !== "all" && !(l.categories.length ? l.categories : [l.category]).includes(category)) return false;
       if (!term) return true;
       const art = artworks.find((a) => a.id === l.artworkId)?.name ?? "";
       return [l.title, l.description, l.sku, l.store, art, ...l.tags].some((s) => s.toLowerCase().includes(term));
@@ -260,7 +260,7 @@ function ListingRow({ l, onClick }: { l: Listing; onClick: () => void }) {
         <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <StoreBadge supplier={l.supplier} />
           {l.store && <span className="font-medium text-foreground/80">{l.store}</span>}
-          <span>{l.category}</span>
+          <span>{(l.categories.length ? l.categories : [l.category]).join(" · ")}</span>
           {l.variations.length > 0 && <span>{l.variations.length} variations</span>}
           {l.sku && <span className="hidden sm:inline">· {l.sku}</span>}
         </div>

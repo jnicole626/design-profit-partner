@@ -56,7 +56,7 @@ export async function fetchCloudCatalog() {
   })));
   const listings: Listing[] = await Promise.all(l.data.map(async (row) => ({
     id: row.id, artworkId: row.artwork_id, store: row.store, supplier: row.supplier as Listing["supplier"], title: row.title,
-    category: row.category, status: row.status as Listing["status"], retailPrice: Number(row.retail_price),
+    category: row.category, categories: Array.isArray(row.categories) && row.categories.length ? row.categories : [row.category], status: row.status as Listing["status"], retailPrice: Number(row.retail_price),
     baseCost: Number(row.base_cost), royaltyRate: Number(row.royalty_rate), description: row.description,
     tags: row.tags, url: row.url, sku: row.sku, photos: await Promise.all(row.photos.map(imageForDisplay)),
     printProvider: row.print_provider, dpiCheck: row.dpi_check, variantNotes: row.variant_notes, productionNotes: row.production_notes,
@@ -79,7 +79,7 @@ export async function saveCloudListing(listing: Listing) {
   const row: TablesInsert<"listings"> = {
     id: listing.id, user_id: userId, artwork_id: listing.artworkId, store: listing.store, supplier: listing.supplier,
     title: listing.title,
-    category: listing.category, status: listing.status, retail_price: listing.retailPrice, base_cost: listing.baseCost,
+    category: listing.categories[0] ?? listing.category, categories: listing.categories, status: listing.status, retail_price: listing.retailPrice, base_cost: listing.baseCost,
     royalty_rate: listing.royaltyRate, description: listing.description, tags: listing.tags, url: listing.url,
     sku: listing.sku, photos, print_provider: listing.printProvider, dpi_check: listing.dpiCheck,
     variant_notes: listing.variantNotes, production_notes: listing.productionNotes,
