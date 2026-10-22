@@ -40,6 +40,7 @@ export interface Listing {
   supplier: Supplier; // who fulfills it: Printify or Zazzle
   title: string;
   category: string;
+  categories: string[];
   status: Status;
   retailPrice: number;
   baseCost: number; // Printify only
@@ -99,6 +100,7 @@ export const emptyListing = (artworkId: string | null, supplier: Supplier = "pri
   supplier,
   title: "",
   category: supplier === "zazzle" ? "Stationery" : "Apparel",
+  categories: [supplier === "zazzle" ? "Stationery" : "Apparel"],
   status: "draft",
   retailPrice: 0,
   baseCost: 0,

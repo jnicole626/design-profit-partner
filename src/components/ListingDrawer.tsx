@@ -52,6 +52,12 @@ export function ListingDrawer({ listing, artworks, categories, onAddCategory, on
   const addVariation = () => set("variations", [...d.variations, { id: uid(), name: "", sku: d.sku, retailPrice: d.retailPrice, baseCost: d.baseCost, royaltyRate: d.royaltyRate }]);
   const updateVariation = <K extends keyof ListingVariation>(id: string, key: K, value: ListingVariation[K]) =>
     set("variations", d.variations.map((v) => v.id === id ? { ...v, [key]: value } : v));
+  const toggleCategory = (name: string) => {
+    const current = d.categories.length ? d.categories : [d.category];
+    const next = current.includes(name) ? current.filter((c) => c !== name) : [...current, name];
+    if (!next.length) return;
+    setD({ ...d, categories: next, category: next[0] ?? d.category });
+  };
   const onFile = (files: FileList | null) => {
     Array.from(files ?? []).forEach((f) => {
       const r = new FileReader();
@@ -65,7 +71,7 @@ export function ListingDrawer({ listing, artworks, categories, onAddCategory, on
     if (!name) return;
     try {
       await onAddCategory(name);
-      set("category", name);
+      setD((current) => current ? { ...current, category: name, categories: Array.from(new Set([...current.categories, name])) } : current);
       setAddingCategory(false);
       setNewCategory("");
       toast.success(`Category “${name}” added`);
@@ -140,31 +146,17 @@ export function ListingDrawer({ listing, artworks, categories, onAddCategory, on
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Category">
-              {addingCategory ? (
-                <div className="flex gap-1.5">
-                  <Input
-                    autoFocus
-                    placeholder="New category name"
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveNewCategory(); } if (e.key === "Escape") setAddingCategory(false); }}
-                  />
-                  <Button size="sm" variant="secondary" onClick={saveNewCategory} disabled={!newCategory.trim()}>Add</Button>
+            <Field label="Categories" className="col-span-2">
+              <div className="rounded-md border bg-card p-2">
+                <div className="flex flex-wrap gap-1.5">
+                  {allCategories.map((c) => {
+                    const selected = (d.categories.length ? d.categories : [d.category]).includes(c);
+                    return <button key={c} type="button" onClick={() => toggleCategory(c)} className={`rounded-full border px-2.5 py-1 text-xs transition ${selected ? "border-primary bg-primary text-primary-foreground" : "text-muted-foreground hover:border-primary hover:text-foreground"}`}>{c}</button>;
+                  })}
+                  {!addingCategory && <Button type="button" size="sm" variant="ghost" onClick={() => setAddingCategory(true)}><Plus className="h-3.5 w-3.5" /> New</Button>}
                 </div>
-              ) : (
-                <div className="flex gap-1.5">
-                  <Select value={d.category} onValueChange={(v) => set("category", v)}>
-                    <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {allCategories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <Button size="sm" variant="outline" aria-label="Add new category" onClick={() => setAddingCategory(true)}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
+                {addingCategory && <div className="mt-2 flex gap-1.5"><Input autoFocus placeholder="New category name" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveNewCategory(); } if (e.key === "Escape") setAddingCategory(false); }} /><Button size="sm" variant="secondary" onClick={saveNewCategory} disabled={!newCategory.trim()}>Add</Button></div>}
+              </div>
             </Field>
             <Field label="Artwork">
               <Select value={d.artworkId ?? "none"} onValueChange={(v) => set("artworkId", v === "none" ? null : v)}>
