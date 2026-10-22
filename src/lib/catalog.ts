@@ -24,6 +24,15 @@ export interface Artwork {
   createdAt: string;
 }
 
+export interface ListingVariation {
+  id: string;
+  name: string;
+  sku: string;
+  retailPrice: number;
+  baseCost: number;
+  royaltyRate: number;
+}
+
 export interface Listing {
   id: string;
   artworkId: string | null; // null = standalone
@@ -44,6 +53,7 @@ export interface Listing {
   dpiCheck: boolean;
   variantNotes: string;
   productionNotes: string;
+  variations: ListingVariation[];
 }
 
 export interface Profit {
@@ -63,6 +73,13 @@ export function calcProfit(
       ? retail - (Number(l.baseCost) || 0)
       : retail * ((Number(l.royaltyRate) || 0) / 100);
   return { net: round2(net), margin: retail > 0 ? round2((net / retail) * 100) : 0 };
+}
+
+export function calcVariationProfit(
+  v: Pick<ListingVariation, "retailPrice" | "baseCost" | "royaltyRate">,
+  supplier: Supplier,
+): Profit {
+  return calcProfit({ supplier, ...v });
 }
 
 export function summarize(artworks: Artwork[], listings: Listing[]) {
@@ -95,6 +112,7 @@ export const emptyListing = (artworkId: string | null, supplier: Supplier = "pri
   dpiCheck: false,
   variantNotes: "",
   productionNotes: "",
+  variations: [],
 });
 
 let sampleId = 0;

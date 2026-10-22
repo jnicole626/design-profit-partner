@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ListingDrawer } from "@/components/ListingDrawer";
+import { ListingImportDialog } from "@/components/ListingImportDialog";
 import { StatusBadge, StoreBadge } from "@/components/StoreBadge";
 import {
   CATEGORIES, calcProfit, emptyListing, hasBrowserCatalog, loadCatalog, money, summarize, uid,
@@ -53,6 +54,7 @@ function CloudCatalog({ userId }: { userId: string }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<Listing | null>(null);
   const [artDialog, setArtDialog] = useState(false);
+  const [importDialog, setImportDialog] = useState(false);
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: cloudCatalogKey(userId) });
   const importCatalog = async () => {
@@ -105,6 +107,9 @@ function CloudCatalog({ userId }: { userId: string }) {
             <Button variant="outline" onClick={() => supabase.auth.signOut()}>Sign out</Button>
             <Button variant="outline" className="border-ivory/30 bg-transparent text-ivory hover:bg-ivory/10 hover:text-ivory" onClick={() => setArtDialog(true)}>
               <Palette className="h-4 w-4" /> New artwork
+            </Button>
+            <Button variant="outline" className="border-ivory/30 bg-transparent text-ivory hover:bg-ivory/10 hover:text-ivory" onClick={() => setImportDialog(true)}>
+              <CloudUpload className="h-4 w-4" /> Import listing
             </Button>
             <Button className="bg-coral text-ivory hover:bg-coral/90" onClick={() => setOpen(emptyListing(null))}>
               <Plus className="h-4 w-4" /> New listing
@@ -225,6 +230,7 @@ function CloudCatalog({ userId }: { userId: string }) {
         onSave={saveListing}
         onDelete={async (id) => { await deleteCloudListing(id); await refresh(); }}
       />
+      <ListingImportDialog open={importDialog} onOpenChange={setImportDialog} onCreate={setOpen} />
       <ArtworkDialog open={artDialog} onOpenChange={setArtDialog} onCreate={async (a) => { await saveCloudArtwork(a); await refresh(); }} />
     </div>
   );
@@ -255,6 +261,7 @@ function ListingRow({ l, onClick }: { l: Listing; onClick: () => void }) {
           <StoreBadge supplier={l.supplier} />
           {l.store && <span className="font-medium text-foreground/80">{l.store}</span>}
           <span>{l.category}</span>
+          {l.variations.length > 0 && <span>{l.variations.length} variations</span>}
           {l.sku && <span className="hidden sm:inline">· {l.sku}</span>}
         </div>
       </div>

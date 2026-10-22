@@ -85,6 +85,7 @@ export type Database = {
           url: string
           user_id: string
           variant_notes: string
+          variations: Json
         }
         Insert: {
           artwork_id?: string | null
@@ -108,6 +109,7 @@ export type Database = {
           url?: string
           user_id?: string
           variant_notes?: string
+          variations?: Json
         }
         Update: {
           artwork_id?: string | null
@@ -131,6 +133,7 @@ export type Database = {
           url?: string
           user_id?: string
           variant_notes?: string
+          variations?: Json
         }
         Relationships: [
           {

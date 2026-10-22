@@ -60,6 +60,7 @@ export async function fetchCloudCatalog() {
     baseCost: Number(row.base_cost), royaltyRate: Number(row.royalty_rate), description: row.description,
     tags: row.tags, url: row.url, sku: row.sku, photos: await Promise.all(row.photos.map(imageForDisplay)),
     printProvider: row.print_provider, dpiCheck: row.dpi_check, variantNotes: row.variant_notes, productionNotes: row.production_notes,
+    variations: Array.isArray(row.variations) ? row.variations as unknown as Listing["variations"] : [],
   })));
   const categories = c.data.map((row) => row.name);
   return { artworks, listings, categories };
@@ -82,6 +83,7 @@ export async function saveCloudListing(listing: Listing) {
     royalty_rate: listing.royaltyRate, description: listing.description, tags: listing.tags, url: listing.url,
     sku: listing.sku, photos, print_provider: listing.printProvider, dpi_check: listing.dpiCheck,
     variant_notes: listing.variantNotes, production_notes: listing.productionNotes,
+    variations: listing.variations as unknown as never,
   };
   const { error } = await supabase.from("listings").upsert(row);
   if (error) throw error;
