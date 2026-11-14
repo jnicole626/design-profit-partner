@@ -206,6 +206,17 @@ function CloudCatalog({ userId }: { userId: string }) {
                   ) : (
                     <div className="flex h-56 items-center justify-center text-muted-foreground md:h-full"><ImagePlus /></div>
                   )}
+                  {a.image && (
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      aria-label={`Download ${a.name} image`}
+                      className="absolute right-2 top-2 h-8 w-8 bg-ivory/90 text-charcoal shadow hover:bg-ivory"
+                      onClick={() => downloadImage(a.image, a.name)}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  )}
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-charcoal/85 to-transparent p-4 pt-10">
                     <h2 className="font-display text-lg font-bold tracking-wide text-ivory">{a.name}</h2>
                     <p className="font-script text-lg leading-tight text-gold">{listings.filter((l) => l.artworkId === a.id).length} listings</p>
