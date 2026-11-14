@@ -66,8 +66,8 @@ export type Database = {
         Row: {
           artwork_id: string | null
           base_cost: number
-          category: string
           categories: string[]
+          category: string
           created_at: string
           description: string
           dpi_check: boolean
@@ -91,8 +91,8 @@ export type Database = {
         Insert: {
           artwork_id?: string | null
           base_cost?: number
-          category: string
           categories?: string[]
+          category: string
           created_at?: string
           description?: string
           dpi_check?: boolean
@@ -116,8 +116,8 @@ export type Database = {
         Update: {
           artwork_id?: string | null
           base_cost?: number
-          category?: string
           categories?: string[]
+          category?: string
           created_at?: string
           description?: string
           dpi_check?: boolean
