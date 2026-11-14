@@ -39,20 +39,30 @@ type SupplierFilter = "all" | Supplier;
 
 // Signed cloud URLs are cross-origin, so the download attribute is ignored — fetch to a blob instead.
 async function downloadImage(url: string, name: string) {
+  // Inside an embedded preview the browser may block downloads, so open a tab right away (before any await).
+  const embedded = typeof window !== "undefined" && window.self !== window.top;
+  const tab = embedded ? window.open("", "_blank") : null;
   try {
     const response = await fetch(url);
     if (!response.ok) throw new Error("Could not read the image.");
     const blob = await response.blob();
     const ext = blob.type.split("/")[1]?.split(";")[0] || "png";
+    const filename = `${name.replace(/[^\w-]+/g, "-").toLowerCase() || "artwork"}.${ext}`;
     const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = blobUrl;
-    a.download = `${name.replace(/[^\w-]+/g, "-").toLowerCase() || "artwork"}.${ext}`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 30_000);
+    if (tab) {
+      tab.location.href = blobUrl;
+      toast.success("Image opened in a new tab — right-click or long-press it to save.");
+    } else {
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
   } catch (error) {
+    tab?.close();
     toast.error(error instanceof Error ? error.message : "Image could not be downloaded.");
   }
 }
