@@ -37,6 +37,26 @@ export const Route = createFileRoute("/")({
 
 type SupplierFilter = "all" | Supplier;
 
+// Signed cloud URLs are cross-origin, so the download attribute is ignored — fetch to a blob instead.
+async function downloadImage(url: string, name: string) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Could not read the image.");
+    const blob = await response.blob();
+    const ext = blob.type.split("/")[1]?.split(";")[0] || "png";
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = `${name.replace(/[^\w-]+/g, "-").toLowerCase() || "artwork"}.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 30_000);
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "Image could not be downloaded.");
+  }
+}
+
 function Index() {
   const { user, ready } = useCloudSession();
   if (!ready) return <p className="p-8 text-muted-foreground">Opening your catalog…</p>;
