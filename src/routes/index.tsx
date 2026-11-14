@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CloudSignIn } from "@/components/CloudSignIn";
 import { useCloudSession } from "@/components/CloudSession";
 import { cloudCatalogKey, fetchCloudCatalog, saveCloudArtwork, saveCloudCategory, saveCloudListing, deleteCloudListing, importBrowserCatalog } from "@/lib/cloud-catalog";
-import { CloudUpload, ImagePlus, Layers, Palette, Plus, Search, Sparkles, Tag, TrendingUp } from "lucide-react";
+import { CloudUpload, Download, ImagePlus, Layers, Palette, Plus, Search, Sparkles, Tag, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
