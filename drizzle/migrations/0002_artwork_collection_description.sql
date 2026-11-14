@@ -1,0 +1,1 @@
+ALTER TABLE public.artworks ADD COLUMN IF NOT EXISTS collection_description text NOT NULL DEFAULT '';

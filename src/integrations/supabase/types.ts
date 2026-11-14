@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       artworks: {
         Row: {
+          collection_description: string
           created_at: string
           id: string
           image: string
@@ -24,6 +25,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          collection_description?: string
           created_at?: string
           id: string
           image?: string
@@ -32,6 +34,7 @@ export type Database = {
           user_id?: string
         }
         Update: {
+          collection_description?: string
           created_at?: string
           id?: string
           image?: string

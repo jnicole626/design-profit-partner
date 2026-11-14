@@ -15,6 +15,13 @@
       "when": 1792464139949,
       "tag": "0001_store_names_supplier_and_categories",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794678212726,
+      "tag": "0002_artwork_collection_description",
+      "breakpoints": true
     }
   ]
 }
