@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CloudSignIn } from "@/components/CloudSignIn";
 import { useCloudSession } from "@/components/CloudSession";
 import { cloudCatalogKey, fetchCloudCatalog, saveCloudArtwork, saveCloudCategory, saveCloudListing, deleteCloudListing, importBrowserCatalog } from "@/lib/cloud-catalog";
-import { CloudUpload, ImagePlus, Layers, Palette, Plus, Search, Sparkles, Tag, TrendingUp } from "lucide-react";
+import { CloudUpload, Download, ImagePlus, Layers, Palette, Plus, Search, Sparkles, Tag, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +36,26 @@ export const Route = createFileRoute("/")({
 });
 
 type SupplierFilter = "all" | Supplier;
+
+// Signed cloud URLs are cross-origin, so the download attribute is ignored — fetch to a blob instead.
+async function downloadImage(url: string, name: string) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Could not read the image.");
+    const blob = await response.blob();
+    const ext = blob.type.split("/")[1]?.split(";")[0] || "png";
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = `${name.replace(/[^\w-]+/g, "-").toLowerCase() || "artwork"}.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 30_000);
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "Image could not be downloaded.");
+  }
+}
 
 function Index() {
   const { user, ready } = useCloudSession();
@@ -185,6 +205,17 @@ function CloudCatalog({ userId }: { userId: string }) {
                     <img src={a.image} alt={a.name} loading="lazy" className="h-56 w-full object-cover md:h-full" />
                   ) : (
                     <div className="flex h-56 items-center justify-center text-muted-foreground md:h-full"><ImagePlus /></div>
+                  )}
+                  {a.image && (
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      aria-label={`Download ${a.name} image`}
+                      className="absolute right-2 top-2 h-8 w-8 bg-ivory/90 text-charcoal shadow hover:bg-ivory"
+                      onClick={() => downloadImage(a.image, a.name)}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
                   )}
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-charcoal/85 to-transparent p-4 pt-10">
                     <h2 className="font-display text-lg font-bold tracking-wide text-ivory">{a.name}</h2>
