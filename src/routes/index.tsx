@@ -54,6 +54,7 @@ function CloudCatalog({ userId }: { userId: string }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<Listing | null>(null);
   const [artDialog, setArtDialog] = useState(false);
+  const [editArt, setEditArt] = useState<Artwork | null>(null);
   const [importDialog, setImportDialog] = useState(false);
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: cloudCatalogKey(userId) });
@@ -105,7 +106,7 @@ function CloudCatalog({ userId }: { userId: string }) {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => supabase.auth.signOut()}>Sign out</Button>
-            <Button variant="outline" className="border-ivory/30 bg-transparent text-ivory hover:bg-ivory/10 hover:text-ivory" onClick={() => setArtDialog(true)}>
+            <Button variant="outline" className="border-ivory/30 bg-transparent text-ivory hover:bg-ivory/10 hover:text-ivory" onClick={() => { setEditArt(null); setArtDialog(true); }}>
               <Palette className="h-4 w-4" /> New artwork
             </Button>
             <Button variant="outline" className="border-ivory/30 bg-transparent text-ivory hover:bg-ivory/10 hover:text-ivory" onClick={() => setImportDialog(true)}>
@@ -191,6 +192,8 @@ function CloudCatalog({ userId }: { userId: string }) {
                   </div>
                 </div>
                 <div className="p-4">
+                  <div className="mb-2 flex justify-end"><Button variant="ghost" size="sm" onClick={() => { setEditArt(a); setArtDialog(true); }}>Edit artwork</Button></div>
+                  {a.collectionDescription && <div className="mb-3"><p className="text-xs font-semibold uppercase tracking-wide text-primary">Collection</p><p className="whitespace-pre-line text-sm">{a.collectionDescription}</p></div>}
                   {a.notes && <p className="mb-3 border-l-2 border-gold pl-3 text-sm italic text-muted-foreground">{a.notes}</p>}
                   <div className="space-y-2">
                     {ls.map((l) => <ListingRow key={l.id} l={l} onClick={() => setOpen(l)} />)}
@@ -231,7 +234,7 @@ function CloudCatalog({ userId }: { userId: string }) {
         onDelete={async (id) => { await deleteCloudListing(id); await refresh(); }}
       />
       <ListingImportDialog open={importDialog} onOpenChange={setImportDialog} onCreate={setOpen} />
-      <ArtworkDialog open={artDialog} onOpenChange={setArtDialog} onCreate={async (a) => { await saveCloudArtwork(a); await refresh(); }} />
+      <ArtworkDialog key={editArt?.id ?? "new"} initial={editArt} open={artDialog} onOpenChange={setArtDialog} onCreate={async (a) => { await saveCloudArtwork(a); await refresh(); }} />
     </div>
   );
 }
@@ -275,10 +278,11 @@ function ListingRow({ l, onClick }: { l: Listing; onClick: () => void }) {
   );
 }
 
-function ArtworkDialog({ open, onOpenChange, onCreate }: { open: boolean; onOpenChange: (o: boolean) => void; onCreate: (a: Artwork) => Promise<void> }) {
-  const [name, setName] = useState("");
-  const [image, setImage] = useState("");
-  const [notes, setNotes] = useState("");
+function ArtworkDialog({ initial, open, onOpenChange, onCreate }: { initial?: Artwork | null; open: boolean; onOpenChange: (o: boolean) => void; onCreate: (a: Artwork) => Promise<void> }) {
+  const [name, setName] = useState(initial?.name ?? "");
+  const [image, setImage] = useState(initial?.image ?? "");
+  const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [collection, setCollection] = useState(initial?.collectionDescription ?? "");
   const [saving, setSaving] = useState(false);
   const onFile = (f?: File) => {
     if (!f) return;
@@ -289,7 +293,7 @@ function ArtworkDialog({ open, onOpenChange, onCreate }: { open: boolean; onOpen
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-background">
-        <DialogHeader><DialogTitle className="font-display tracking-wide">New artwork</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-display tracking-wide">{initial ? "Edit artwork" : "New artwork"}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div><Label>Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
           <div>
@@ -299,6 +303,7 @@ function ArtworkDialog({ open, onOpenChange, onCreate }: { open: boolean; onOpen
               <input type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
             </label>
           </div>
+          <div><Label>Collection description</Label><Textarea rows={4} value={collection} onChange={(e) => setCollection(e.target.value)} placeholder="Shared story for every product using this design…" /></div>
           <div><Label>Notes</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="File sizes, DPI, color notes…" /></div>
           <Button
             className="w-full"
@@ -306,14 +311,15 @@ function ArtworkDialog({ open, onOpenChange, onCreate }: { open: boolean; onOpen
             onClick={async () => {
               setSaving(true);
               try {
-                await onCreate({ id: uid(), name: name.trim(), image, notes, createdAt: new Date().toISOString().slice(0, 10) });
-                setName(""); setImage(""); setNotes(""); onOpenChange(false);
+                await onCreate({ id: initial?.id ?? uid(), name: name.trim(), image, notes, collectionDescription: collection, createdAt: initial?.createdAt ?? new Date().toISOString().slice(0, 10) });
+                if (!initial) { setName(""); setImage(""); setNotes(""); setCollection(""); }
+                onOpenChange(false);
                 toast.success("Artwork saved to Cloud");
               } catch (error) { toast.error(error instanceof Error ? error.message : "Artwork could not be saved. Please retry."); }
               finally { setSaving(false); }
             }}
           >
-            {saving ? "Saving…" : "Create artwork"}
+            {saving ? "Saving…" : initial ? "Save changes" : "Create artwork"}
           </Button>
         </div>
       </DialogContent>

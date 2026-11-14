@@ -21,6 +21,7 @@ export interface Artwork {
   name: string;
   image: string;
   notes: string;
+  collectionDescription?: string;
   createdAt: string;
 }
 
