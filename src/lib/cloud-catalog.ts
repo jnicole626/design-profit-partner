@@ -52,7 +52,7 @@ export async function fetchCloudCatalog() {
   if (l.error) throw l.error;
   if (c.error) throw c.error;
   const artworks: Artwork[] = await Promise.all(a.data.map(async (row) => ({
-    id: row.id, name: row.name, image: await imageForDisplay(row.image), notes: row.notes, createdAt: row.created_at,
+    id: row.id, name: row.name, image: await imageForDisplay(row.image), notes: row.notes, collectionDescription: row.collection_description, createdAt: row.created_at,
   })));
   const listings: Listing[] = await Promise.all(l.data.map(async (row) => ({
     id: row.id, artworkId: row.artwork_id, store: row.store, supplier: row.supplier as Listing["supplier"], title: row.title,
@@ -69,7 +69,7 @@ export async function fetchCloudCatalog() {
 export async function saveCloudArtwork(artwork: Artwork) {
   const userId = await ownerId();
   const image = await persistImage(artwork.image, "artwork-originals", userId);
-  const { error } = await supabase.from("artworks").upsert({ id: artwork.id, user_id: userId, name: artwork.name, image, notes: artwork.notes, created_at: artwork.createdAt });
+  const { error } = await supabase.from("artworks").upsert({ id: artwork.id, user_id: userId, name: artwork.name, image, notes: artwork.notes, collection_description: artwork.collectionDescription ?? "", created_at: artwork.createdAt });
   if (error) throw error;
 }
 
